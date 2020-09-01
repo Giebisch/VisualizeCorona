@@ -3,31 +3,48 @@ import csv
 from datetime import datetime
 from operator import add
 import sys
+import requests
 
-countries = dict()
-dates = []
+def create_plot(countries):
+    plt.figure(figsize=(13,9))
+    plt.subplots_adjust(bottom=0.13)
 
-# either recovered, deaths, confirmed
-choice = sys.argv[1]
+    cc = [x.lower() for x in countries]
 
-# Change to Recovered / Deaths / Confirmed
-with open("time_series_covid19_" + choice + "_global.csv", "r") as csvfile:
-    data = csv.reader(csvfile, delimiter=",")
-    dates = [datetime.strptime(date, '%m/%d/%y') for date in next(data)[4:]]
-    for country in data:
-        # Add countries you want to visualize
-        if country[1] in ["Germany", "Italy", "China", "US"]:
-            numbers_in_int = [int(number) for number in country[4:]]
-            if country[1] not in countries:
-                countries[country[1]] = numbers_in_int
-            else:
-                countries[country[1]] = list(map(add, countries.get(country[1]), numbers_in_int)) 
+    for i, choice in enumerate(["confirmed", "deaths"], 1):
+        dates = []
+        countries = dict()
 
-# Adding countries to plot
-for country in countries:
-    plt.plot(dates, countries[country], label=country)
+        url = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_" + choice + "_global.csv"
+        r = requests.get(url).content.decode("utf-8")
+        data = csv.reader(r.splitlines(), delimiter=',')
 
-plt.legend(loc='best')
-plt.xticks(rotation=90)
-plt.grid()
-plt.show()
+        dates = [datetime.strptime(date, '%m/%d/%y') for date in next(data)[4:]]
+        for country in data:
+            # Add countries you want to visualize
+            if country[1].lower() in cc:
+                numbers_in_int = [int(number) for number in country[4:]]
+                if country[1] not in countries:
+                    countries[country[1]] = numbers_in_int
+                else:
+                    countries[country[1]] = list(map(add, countries.get(country[1]), numbers_in_int))
+
+        # Adding countries to plot
+        plt.subplot(120+i)
+        for country in countries:
+            plt.plot(dates, countries[country], label=country)
+
+        if i == 1:
+            plt.title("Infected")
+        else:
+            plt.title("Deaths")
+        plt.legend(loc='best')
+        plt.xticks(rotation=90)
+        plt.grid()
+
+    plt.savefig("plot.png")
+    return True
+    # plt.show()
+
+if __name__ == "__main__":
+    create_plot(["germany", "us", "italy"])
